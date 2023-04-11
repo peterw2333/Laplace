@@ -50,9 +50,18 @@ nll_map = -dists.Categorical(probs_map).log_prob(targets).mean()
 print(f'[MAP] Acc.: {acc_map:.1%}; ECE: {ece_map:.1%}; NLL: {nll_map:.3}')
 
 # Laplace
+# la = Laplace(model, 'classification',
+#              subset_of_weights='last_layer',
+#              hessian_structure='kron')
+
+from laplace.utils import LargestMagnitudeSubnetMask
+subnetwork_mask = LargestMagnitudeSubnetMask(model, n_params_subnet=100)
+subnetwork_indices = subnetwork_mask.select()
+
 la = Laplace(model, 'classification',
-             subset_of_weights='last_layer',
-             hessian_structure='kron')
+             subset_of_weights='subnetwork',
+             hessian_structure='diag',
+             subnetwork_indices=subnetwork_indices)
 la.fit(train_loader)
 la.optimize_prior_precision(method='marglik')
 

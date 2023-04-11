@@ -121,14 +121,13 @@ print(f'[MAP] Acc.: {acc_map:.1%}; ECE: {ece_map:.1%}; NLL: {nll_map:.3}')
 # Laplace
 from laplace.utils import LargestVarianceDiagLaplaceSubnetMask, LastLayerSubnetMask, LargestMagnitudeSubnetMask, ModuleNameSubnetMask
 
-masking_mode = "ModuleName"
+masking_mode = "LargestVarianceDiag"
 print(masking_mode)
 
 while True:
     if masking_mode == "LastLayer":
         subnetwork_mask = LastLayerSubnetMask(model)
         subnetwork_indices = subnetwork_mask.select(train_loader)
-        print(subnetwork_indices)
         print(f"Number of params: {subnetwork_indices.shape[0]}")
 
         la = Laplace(model, 'classification',
@@ -156,88 +155,8 @@ while True:
                     hessian_structure='full',
                     subnetwork_indices=subnetwork_indices)
     elif masking_mode == "ModuleName":
-        module_names = ['conv1']
-        print(module_names)
-        subnetwork_mask = ModuleNameSubnetMask(model, module_names=module_names)
+        subnetwork_mask = ModuleNameSubnetMask(model, module_names=['conv1'])
         subnetwork_indices = subnetwork_mask.select(train_loader)
-        print(subnetwork_indices)
-        print(f"Number of params: {subnetwork_indices.shape[0]}")
-
-        la = Laplace(model, 'classification',
-                    subset_of_weights='subnetwork',
-                    hessian_structure='full',
-                    subnetwork_indices=subnetwork_indices)
-    elif masking_mode == "ModuleNameLargestMagnitude":
-        module_names = ['conv1']
-        print(module_names)
-        n_params_subnet = 100
-        module_name_mask = ModuleNameSubnetMask(model, module_names=module_names)
-        module_name_indices = module_name_mask.select(train_loader)
-        largest_magnitude_mask = LargestMagnitudeSubnetMask(model, n_params_subnet=10)
-        largest_magnitude_score = largest_magnitude_mask.compute_param_scores(train_loader)
-
-        module_largest_magnitude_score = torch.index_select(largest_magnitude_score, 0, module_name_indices)
-        idx = torch.argsort(module_largest_magnitude_score, descending=True)[:n_params_subnet]
-        subnetwork_indices = module_name_indices[idx]
-        print(f"Number of params: {subnetwork_indices.shape[0]}")
-
-        la = Laplace(model, 'classification',
-                    subset_of_weights='subnetwork',
-                    hessian_structure='full',
-                    subnetwork_indices=subnetwork_indices)
-
-    elif masking_mode == "ModuleNameLargestVariance":
-        module_names = ['block1.layer.0.conv1','block1.layer.0.conv2']
-        print(module_names)
-        n_params_subnet = 10000
-
-        module_name_mask = ModuleNameSubnetMask(model, module_names=module_names)
-        module_name_indices = module_name_mask.select(train_loader)
-
-        diag_laplace_model = Laplace(model, 'classification',
-                    subset_of_weights='all',
-                    hessian_structure='diag')
-        largest_variance_mask = LargestVarianceDiagLaplaceSubnetMask(model, n_params_subnet=n_params_subnet, diag_laplace_model=diag_laplace_model)
-        largest_variance_score = largest_variance_mask.compute_param_scores(train_loader)
-
-        module_largest_variance_score = torch.index_select(largest_variance_score, 0, module_name_indices)
-        idx = torch.argsort(module_largest_variance_score, descending=True)[:n_params_subnet]
-        subnetwork_indices = module_name_indices[idx]
-        print(f"Number of params: {subnetwork_indices.shape[0]}")
-
-        la = Laplace(model, 'classification',
-                    subset_of_weights='subnetwork',
-                    hessian_structure='full',
-                    subnetwork_indices=subnetwork_indices)
-    elif masking_mode == "ConvLayerLargestMagnitude":
-        module_name = "block1.layer.0.conv1"
-        k = 64
-        print(module_name)
-        module_names = [module_name]
-        module_name_mask = ModuleNameSubnetMask(model, module_names=module_names)
-        module_name_indices = module_name_mask.select(train_loader)
-
-        weights_name = module_name + ".weight"
-
-        print(weights_name)
-        for name, params in model.named_parameters():
-            if name == weights_name:
-                target_params = params
-                break
-        
-        target_params = torch.abs(target_params)
-        target_params = target_params.flatten(start_dim=2) # 64 * 16 * 3 * 3 -> 64 * 16 * 9
-        max_indices = torch.zeros_like(target_params)
-        for idx in range(target_params.shape[0]):
-
-            topk = torch.topk(torch.flatten(target_params[idx,:,:]), k=k).values
-            for value in list(topk):
-                max_indices[idx,:,:] = torch.logical_or(max_indices[idx,:,:], (target_params[idx,:,:] == value))
-
-        torch.set_printoptions(threshold=10000)
-        max_indices = max_indices.view(-1)
-        subnetwork_indices = torch.flatten(torch.nonzero(max_indices)) + module_name_indices[0]
-        
         print(f"Number of params: {subnetwork_indices.shape[0]}")
 
         la = Laplace(model, 'classification',
@@ -253,8 +172,7 @@ while True:
 print("complete")
 
 la.fit(train_loader)
-la.optimize_prior_precision(method='marglik')
-# la.optimize_prior_precision(method='CV', val_loader=val_loader, lr=1e-3)
+la.optimize_prior_precision(method='CV', val_loader=val_loader)
 
 start_time = time.time()
 probs_laplace = predict(test_loader, la, laplace=True)
@@ -265,7 +183,6 @@ ece_laplace = ECE(bins=15).measure(probs_laplace.numpy(), targets.numpy())
 nll_laplace = -dists.Categorical(probs_laplace).log_prob(targets).mean()
 
 print(f'[Laplace] Acc.: {acc_laplace:.1%}; ECE: {ece_laplace:.1%}; NLL: {nll_laplace:.3}')
-
 
 
 
