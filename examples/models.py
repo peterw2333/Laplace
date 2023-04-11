@@ -5,10 +5,10 @@ class MLP(nn.Module):
     def __init__(self, input_size=784, hidden_size=100, num_classes=10):
         super(MLP, self).__init__()
         self.input_size = input_size
-        self.l1 = nn.Linear(input_size, hidden_size) 
+        self.l1 = nn.Linear(input_size, hidden_size)
         self.relu = nn.ReLU()
         self.l2 = nn.Linear(hidden_size, num_classes)
-    
+
     def forward(self, x):
         x = self.l1(x)
         x = self.relu(x)
@@ -16,8 +16,8 @@ class MLP(nn.Module):
         return x
 
 class LeNet5(torch.nn.Module):
-     
-    def __init__(self):   
+
+    def __init__(self):
         super(LeNet5, self).__init__()
         self.conv1 = torch.nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5, stride=1, padding=2, bias=True)
         self.max_pool_1 = torch.nn.MaxPool2d(kernel_size=2)
@@ -26,9 +26,9 @@ class LeNet5(torch.nn.Module):
         self.fc1 = torch.nn.Linear(16*5*5, 120)
         self.fc2 = torch.nn.Linear(120, 84)
         self.fc3 = torch.nn.Linear(84, 10)
-        
+
     def forward(self, x):
-        x = torch.nn.functional.relu(self.conv1(x))  
+        x = torch.nn.functional.relu(self.conv1(x))
         x = self.max_pool_1(x)
         x = torch.nn.functional.relu(self.conv2(x))
         x = self.max_pool_2(x)

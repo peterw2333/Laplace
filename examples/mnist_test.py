@@ -25,11 +25,11 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 
 input_size = 784 # 28x28
-hidden_size = 500 
+hidden_size = 500
 num_classes = 10
 num_epochs = 3
 batch_size = 100
-learning_rate = 0.001 
+learning_rate = 0.001
 
 device = torch.device('cuda')
 
@@ -58,7 +58,7 @@ train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size,
 
 val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size,
                                          shuffle=True)
-                                
+
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size,
                                          shuffle=False)
 
@@ -75,10 +75,10 @@ for epoch in range(num_epochs):
         # Backward and optimize
         optimizer.zero_grad()
         loss.backward()
-        optimizer.step() 
+        optimizer.step()
 
         if (i+1) % 100 == 0:
-            print (f'Epoch [{epoch+1}/{num_epochs}], Step[{i+1}/{num_steps}], Loss: {loss.item():.4f}') 
+            print (f'Epoch [{epoch+1}/{num_epochs}], Step[{i+1}/{num_steps}], Loss: {loss.item():.4f}')
 
 with torch.no_grad():
     n_correct = 0
@@ -90,10 +90,10 @@ with torch.no_grad():
         # max returns (value ,index)
         _, predicted = torch.max(outputs.data, 1)
         n_samples += labels.size(0)
-        n_correct += (predicted == labels).sum().item() 
+        n_correct += (predicted == labels).sum().item()
 
 acc = 100.0 * n_correct / n_samples
-print(f'Accuracy of the network on the 10000 test images: {acc} %') 
+print(f'Accuracy of the network on the 10000 test images: {acc} %')
 
 @torch.no_grad()
 def predict(dataloader, model, laplace=False):
@@ -224,7 +224,7 @@ while True:
             if name == weights_name:
                 target_params = params
                 break
-        
+
         target_params = torch.abs(target_params)
         target_params = target_params.flatten(start_dim=2) # 64 * 16 * 3 * 3 -> 64 * 16 * 9
         max_indices = torch.zeros_like(target_params)
@@ -237,7 +237,7 @@ while True:
         torch.set_printoptions(threshold=10000)
         max_indices = max_indices.view(-1)
         subnetwork_indices = torch.flatten(torch.nonzero(max_indices)) + module_name_indices[0]
-        
+
         print(f"Number of params: {subnetwork_indices.shape[0]}")
 
         la = Laplace(model, 'classification',
@@ -265,7 +265,3 @@ ece_laplace = ECE(bins=15).measure(probs_laplace.numpy(), targets.numpy())
 nll_laplace = -dists.Categorical(probs_laplace).log_prob(targets).mean()
 
 print(f'[Laplace] Acc.: {acc_laplace:.1%}; ECE: {ece_laplace:.1%}; NLL: {nll_laplace:.3}')
-
-
-
-
